@@ -1,0 +1,62 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: velara-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: velara
+      POSTGRES_PASSWORD: velara_dev_password
+      POSTGRES_DB: velara_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - velara_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U velara -d velara_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: velara-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://velara:velara_dev_password@postgres:5432/velara_db?schema=public
+      JWT_SECRET: ${JWT_SECRET:-change-this-in-production-please}
+      JWT_EXPIRES_IN: 7d
+      COOKIE_NAME: velara_session
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:3000}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      CURRENCY: pkr
+    ports:
+      - "4000:4000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
+    container_name: velara-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      HOSTNAME: 0.0.0.0
+      INTERNAL_API_URL: http://backend:4000/api
+    ports:
+      - "3000:3000"
+
+volumes:
+  velara_postgres_data:

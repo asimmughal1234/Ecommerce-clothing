@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+::selection {
+  background: #23241F;
+  color: #E8E3D6;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-size: 112.5%;
+}
+
+body {
+  background-color: #E8E3D6;
+  color: #23241F;
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid #23241F;
+  outline-offset: 3px;
+}
+
+.hairline {
+  border-color: #D3CBB9;
+}
+
+/* Custom underline-grow link, used sparingly for primary nav/CTA text links */
+.link-underline {
+  position: relative;
+  text-decoration: none;
+}
+.link-underline::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 100%;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.link-underline:hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}

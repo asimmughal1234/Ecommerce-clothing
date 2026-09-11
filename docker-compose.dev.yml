@@ -1,0 +1,27 @@
+# Dev override: hot-reload both apps against local source, without rebuilding images.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      target: base
+    command: sh -c "npm install && npx prisma generate && npx prisma migrate deploy && npm run dev"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    environment:
+      NODE_ENV: development
+
+  frontend:
+    build:
+      context: ./frontend
+      target: deps
+    command: sh -c "npm install && npm run dev"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      NODE_ENV: development

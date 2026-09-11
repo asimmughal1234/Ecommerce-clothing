@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: velara-config
+  namespace: velara
+data:
+  NODE_ENV: "production"
+  PORT: "4000"
+  COOKIE_NAME: "velara_session"
+  JWT_EXPIRES_IN: "7d"
+  CURRENCY: "usd"
+  CLIENT_URL: "https://velara.example.com"
+  NEXT_PUBLIC_API_URL: "https://api.velara.example.com/api"
