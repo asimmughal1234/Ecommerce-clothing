@@ -32,6 +32,9 @@ services:
       NODE_ENV: production
       PORT: 4000
       DATABASE_URL: postgresql://velara:velara_dev_password@postgres:5432/velara_db?schema=public
+      # No connection pooler in front of the local database, so the direct URL
+      # Prisma uses for migrations is the same one.
+      DATABASE_URL_UNPOOLED: postgresql://velara:velara_dev_password@postgres:5432/velara_db?schema=public
       JWT_SECRET: ${JWT_SECRET:-change-this-in-production-please}
       JWT_EXPIRES_IN: 7d
       COOKIE_NAME: velara_session

@@ -10,3 +10,10 @@ k8s/01-secrets.yaml
 
 # Local Netlify folder
 .netlify
+
+# Vercel
+.vercel
+
+# Agent skills installed by the Neon marketplace integration
+.agents/
+skills-lock.json
