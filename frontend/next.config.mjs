@@ -10,6 +10,13 @@ const nextConfig = {
       { protocol: "https", hostname: "**.velara.com" },
     ],
   },
+  // Serves the API under the storefront's own origin so the session cookie stays
+  // first-party. Without this the browser drops it on cross-site API calls.
+  async rewrites() {
+    const backendUrl = process.env.BACKEND_URL;
+    if (!backendUrl) return [];
+    return [{ source: "/api/:path*", destination: `${backendUrl}/api/:path*` }];
+  },
 };
 
 export default nextConfig;

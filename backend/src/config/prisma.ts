@@ -5,8 +5,7 @@ declare global {
   var __prisma: PrismaClient | undefined;
 }
 
+// Reused across invocations in every environment. On serverless each warm
+// container would otherwise open a new pool on every request.
 export const prisma = global.__prisma ?? new PrismaClient();
-
-if (process.env.NODE_ENV !== "production") {
-  global.__prisma = prisma;
-}
+global.__prisma = prisma;
