@@ -2,7 +2,15 @@ import Link from "next/link";
 import Image from "next/image";
 import Hero from "@/components/Hero";
 import FeaturedCarousel from "@/components/FeaturedCarousel";
+import { Truck, Wallet, Package, Scissors } from "lucide-react";
 import { Product, Category } from "@/lib/types";
+
+const SERVICES = [
+  { icon: Truck, title: "Free shipping over Rs 6,000", text: "Flat Rs 250 below that, anywhere in Pakistan" },
+  { icon: Wallet, title: "Cash on delivery", text: "Pay when it reaches your door" },
+  { icon: Package, title: "Tracked every step", text: "Follow your order from cart to doorstep" },
+  { icon: Scissors, title: "Made to be mended", text: "Built from mills we've used for a decade" },
+];
 
 const API_URL = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
 
@@ -34,6 +42,22 @@ export default async function HomePage() {
   return (
     <div>
       <Hero />
+
+      <section className="bg-cream border-b hairline">
+        <div className="mx-auto max-w-content px-5 md:px-10 grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-line">
+          {SERVICES.map(({ icon: Icon, title, text }) => (
+            <div key={title} className="flex items-start gap-3.5 px-4 md:px-6 py-7">
+              <span className="w-10 h-10 shrink-0 flex items-center justify-center bg-ink text-cream">
+                <Icon size={18} strokeWidth={1.5} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-medium leading-snug">{title}</p>
+                <p className="text-xs text-ink/55 mt-1 leading-snug">{text}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <section className="mx-auto max-w-content px-5 md:px-10 py-20 md:py-28">
         <div className="flex items-end justify-between mb-10">

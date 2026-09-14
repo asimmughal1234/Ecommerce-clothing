@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import AdminGuard from "@/components/AdminGuard";
-import AdminNav from "@/components/AdminNav";
+import AdminShell from "@/components/AdminShell";
+import RevenueChart from "@/components/RevenueChart";
+import StatusBadge from "@/components/StatusBadge";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/format";
+import { Wallet, ShoppingBag, Package, Users, TrendingUp, TrendingDown, ArrowUpRight } from "lucide-react";
 
 interface Stats {
   productCount: number;
@@ -16,32 +20,55 @@ interface Stats {
   recentOrders: { id: string; orderNumber: string; total: string; status: string; user: { name: string } }[];
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function revenueTrend(series: { date: string; total: number }[]) {
+  if (series.length < 2) return null;
+  const mid = Math.ceil(series.length / 2);
+  const prior = series.slice(0, mid);
+  const recent = series.slice(mid);
+  if (recent.length === 0 || prior.length === 0) return null;
+  const priorSum = prior.reduce((s, d) => s + d.total, 0);
+  const recentSum = recent.reduce((s, d) => s + d.total, 0);
+  if (priorSum === 0) return null;
+  return Math.round(((recentSum - priorSum) / priorSum) * 100);
+}
+
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  trend,
+}: {
+  label: string;
+  value: string;
+  icon: React.ElementType;
+  trend?: number | null;
+}) {
   return (
-    <div className="border hairline p-6">
-      <p className="text-sm text-ink/50">{label}</p>
-      <p className="font-display text-3xl tracking-tightest mt-2">{value}</p>
+    <div className="border hairline bg-cream p-6 flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <div className="w-10 h-10 flex items-center justify-center bg-ink text-cream">
+          <Icon size={18} strokeWidth={1.5} />
+        </div>
+        {typeof trend === "number" && (
+          <span
+            className={`flex items-center gap-1 text-xs font-medium ${trend >= 0 ? "text-moss" : "text-clay"}`}
+          >
+            {trend >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+            {trend >= 0 ? "+" : ""}
+            {trend}%
+          </span>
+        )}
+      </div>
+      <div>
+        <p className="text-sm text-ink/50">{label}</p>
+        <p className="font-display text-3xl tracking-tightest mt-1">{value}</p>
+      </div>
     </div>
   );
 }
 
-function RevenueChart({ data }: { data: { date: string; total: number }[] }) {
-  if (data.length === 0) return <p className="text-sm text-ink/50">No paid orders yet.</p>;
-  const max = Math.max(...data.map((d) => d.total), 1);
-  return (
-    <div className="flex items-end gap-2 h-40">
-      {data.map((d) => (
-        <div key={d.date} className="flex-1 flex flex-col items-center gap-2">
-          <div
-            className="w-full bg-moss"
-            style={{ height: `${Math.max((d.total / max) * 100, 3)}%` }}
-            title={`${d.date}: ${formatPrice(d.total)}`}
-          />
-          <span className="text-[10px] text-ink/40 rotate-0">{d.date.slice(5)}</span>
-        </div>
-      ))}
-    </div>
-  );
+function SkeletonBlock({ className = "" }: { className?: string }) {
+  return <div className={`animate-pulse bg-ink/5 ${className}`} />;
 }
 
 export default function AdminOverviewPage() {
@@ -51,65 +78,88 @@ export default function AdminOverviewPage() {
     api.get<Stats>("/admin/stats").then(setStats).catch(() => setStats(null));
   }, []);
 
+  const trend = stats ? revenueTrend(stats.revenueSeries) : null;
+
   return (
     <AdminGuard>
-      <div className="mx-auto max-w-content px-5 md:px-10 py-14">
-        <h1 className="font-display text-3xl md:text-4xl tracking-tightest mb-8">Admin dashboard</h1>
-        <AdminNav />
-
+      <AdminShell title="Dashboard" subtitle="Here's what's happening with your store today.">
         {!stats ? (
-          <p className="text-sm text-ink/50">Loading…</p>
+          <div className="space-y-12">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <SkeletonBlock key={i} className="h-32" />
+              ))}
+            </div>
+            <SkeletonBlock className="h-64" />
+          </div>
         ) : (
           <div className="space-y-12">
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard label="Revenue (paid orders)" value={formatPrice(stats.revenue)} />
-              <StatCard label="Orders" value={stats.orderCount.toString()} />
-              <StatCard label="Products" value={stats.productCount.toString()} />
-              <StatCard label="Customers" value={stats.userCount.toString()} />
+              <StatCard label="Revenue (paid orders)" value={formatPrice(stats.revenue)} icon={Wallet} trend={trend} />
+              <StatCard label="Orders" value={stats.orderCount.toString()} icon={ShoppingBag} />
+              <StatCard label="Products" value={stats.productCount.toString()} icon={Package} />
+              <StatCard label="Customers" value={stats.userCount.toString()} icon={Users} />
             </div>
 
             <div>
-              <h2 className="text-sm font-medium mb-4">Revenue, last 14 days with sales</h2>
-              <div className="border hairline p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-medium">Revenue, last {stats.revenueSeries.length} days with sales</h2>
+              </div>
+              <div className="border hairline bg-cream p-6">
                 <RevenueChart data={stats.revenueSeries} />
               </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-8">
+            <div className="grid lg:grid-cols-2 gap-8">
               <div>
-                <h2 className="text-sm font-medium mb-4">Recent orders</h2>
-                <ul className="divide-y hairline border hairline">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-sm font-medium">Recent orders</h2>
+                  <Link href="/admin/orders" className="flex items-center gap-1 text-xs text-ink/50 hover:text-ink transition-colors">
+                    View all <ArrowUpRight size={13} />
+                  </Link>
+                </div>
+                <ul className="border hairline bg-cream divide-y hairline">
                   {stats.recentOrders.map((o) => (
-                    <li key={o.id} className="flex justify-between px-4 py-3 text-sm">
-                      <span>{o.orderNumber}</span>
-                      <span className="text-ink/60">{o.status}</span>
-                      <span>{formatPrice(o.total)}</span>
+                    <li key={o.id} className="flex items-center justify-between gap-3 px-4 py-3.5 text-sm">
+                      <div className="min-w-0">
+                        <p className="truncate">{o.orderNumber}</p>
+                        <p className="text-xs text-ink/40 truncate">{o.user?.name}</p>
+                      </div>
+                      <StatusBadge status={o.status} />
+                      <span className="shrink-0 font-medium">{formatPrice(o.total)}</span>
                     </li>
                   ))}
                   {stats.recentOrders.length === 0 && (
-                    <li className="px-4 py-3 text-sm text-ink/50">No orders yet.</li>
+                    <li className="px-4 py-8 text-center text-sm text-ink/50">No orders yet.</li>
                   )}
                 </ul>
               </div>
 
               <div>
-                <h2 className="text-sm font-medium mb-4">Low stock</h2>
-                <ul className="divide-y hairline border hairline">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-sm font-medium">Low stock</h2>
+                  <Link href="/admin/products" className="flex items-center gap-1 text-xs text-ink/50 hover:text-ink transition-colors">
+                    Manage <ArrowUpRight size={13} />
+                  </Link>
+                </div>
+                <ul className="border hairline bg-cream divide-y hairline">
                   {stats.lowStock.map((p) => (
-                    <li key={p.id} className="flex justify-between px-4 py-3 text-sm">
-                      <span>{p.name}</span>
-                      <span className="text-clay">{p.stock} left</span>
+                    <li key={p.id} className="flex items-center justify-between px-4 py-3.5 text-sm">
+                      <span className="truncate">{p.name}</span>
+                      <span className="shrink-0 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide bg-clay/15 text-clay">
+                        {p.stock} left
+                      </span>
                     </li>
                   ))}
                   {stats.lowStock.length === 0 && (
-                    <li className="px-4 py-3 text-sm text-ink/50">Everything is well stocked.</li>
+                    <li className="px-4 py-8 text-center text-sm text-ink/50">Everything is well stocked.</li>
                   )}
                 </ul>
               </div>
             </div>
           </div>
         )}
-      </div>
+      </AdminShell>
     </AdminGuard>
   );
 }

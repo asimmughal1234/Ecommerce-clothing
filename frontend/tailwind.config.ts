@@ -22,7 +22,7 @@ const config: Config = {
         tightest: "-0.04em",
       },
       maxWidth: {
-        content: "1400px",
+        content: "1380px",
       },
       transitionTimingFunction: {
         editorial: "cubic-bezier(0.22, 1, 0.36, 1)",

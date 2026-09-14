@@ -1,11 +1,12 @@
 import Link from "next/link";
+import Logo from "./Logo";
 
 export default function Footer() {
   return (
     <footer className="border-t border-cream/10 mt-24 bg-ink text-cream">
       <div className="mx-auto max-w-content px-5 md:px-10 py-14 grid grid-cols-2 md:grid-cols-4 gap-10">
         <div className="col-span-2 md:col-span-1">
-          <div className="font-display text-xl tracking-tightest mb-3">VELARA</div>
+          <Logo tone="cream" size={32} className="mb-4 text-cream" />
           <p className="text-sm text-cream/70 max-w-[220px] leading-relaxed">
             Considered clothing made from materials built to outlast a single season.
           </p>

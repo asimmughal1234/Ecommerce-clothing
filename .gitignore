@@ -7,3 +7,6 @@ dist
 .DS_Store
 k8s/01-secrets.yaml
 .claude/
+
+# Local Netlify folder
+.netlify
