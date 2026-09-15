@@ -63,8 +63,11 @@ export interface Order {
   id: string;
   orderNumber: string;
   status: string;
-  paymentMethod: "CARD" | "COD";
+  paymentMethod: "CARD" | "COD" | "JAZZCASH";
   paymentStatus: string;
+  cardBrand?: string | null;
+  cardLast4?: string | null;
+  walletNumber?: string | null;
   subtotal: string;
   shippingFee: string;
   tax: string;

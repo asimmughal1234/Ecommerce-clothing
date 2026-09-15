@@ -27,6 +27,7 @@ enum OrderStatus {
 enum PaymentMethod {
   CARD
   COD
+  JAZZCASH
 }
 
 enum PaymentStatus {
@@ -132,6 +133,11 @@ model Order {
   paymentMethod   PaymentMethod
   paymentStatus   PaymentStatus @default(UNPAID)
   stripeSessionId String?
+  // Only ever the masked remnants of a card. The full number and CVC are
+  // validated in the browser and never sent here.
+  cardBrand       String?
+  cardLast4       String?
+  walletNumber    String?
   shippingName    String
   shippingLine1   String
   shippingLine2   String?

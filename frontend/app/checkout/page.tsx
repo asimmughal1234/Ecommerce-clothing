@@ -5,6 +5,28 @@ import { useRouter } from "next/navigation";
 import { useCart, useAuth } from "@/lib/store";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/format";
+import { CreditCard, Smartphone, Banknote, Lock } from "lucide-react";
+import {
+  detectBrand,
+  formatCardNumber,
+  formatExpiry,
+  formatMobile,
+  onlyDigits,
+  luhnValid,
+  cvcLength,
+  expiryInFuture,
+  validMobile,
+} from "@/lib/card";
+
+type PaymentMethod = "CARD" | "JAZZCASH" | "COD";
+
+const METHODS: { value: PaymentMethod; label: string; hint: string; icon: React.ElementType }[] = [
+  { value: "CARD", label: "Debit / Credit card", hint: "Visa, Mastercard, Amex", icon: CreditCard },
+  { value: "JAZZCASH", label: "JazzCash", hint: "Pay from your mobile wallet", icon: Smartphone },
+  { value: "COD", label: "Cash on delivery", hint: "Pay when it reaches your door", icon: Banknote },
+];
+
+const inputClass = "w-full border border-line px-3.5 py-3 text-sm focus-ring";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -21,7 +43,9 @@ export default function CheckoutPage() {
     country: "",
     phone: "",
   });
-  const [paymentMethod, setPaymentMethod] = useState<"CARD" | "COD">("CARD");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CARD");
+  const [card, setCard] = useState({ number: "", name: "", expiry: "", cvc: "" });
+  const [jazzCashNumber, setJazzCashNumber] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -43,15 +67,47 @@ export default function CheckoutPage() {
 
   const SHIPPING = cart.subtotal >= 6000 ? 0 : 250;
   const total = cart.subtotal + SHIPPING;
+  const cardDigits = onlyDigits(card.number);
+  const brand = detectBrand(cardDigits);
+
+  function validatePayment(): string | null {
+    if (paymentMethod === "CARD") {
+      if (!luhnValid(cardDigits)) return "That card number doesn't look right — please check it.";
+      if (card.name.trim().length < 2) return "Enter the name printed on the card.";
+      if (!expiryInFuture(card.expiry)) return "Enter a valid expiry date that hasn't passed.";
+      if (onlyDigits(card.cvc).length !== cvcLength(brand)) {
+        return `The security code should be ${cvcLength(brand)} digits for ${brand}.`;
+      }
+    }
+    if (paymentMethod === "JAZZCASH" && !validMobile(jazzCashNumber)) {
+      return "Enter a valid JazzCash mobile number, e.g. 0300-1234567.";
+    }
+    return null;
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const problem = validatePayment();
+    if (problem) {
+      setError(problem);
+      return;
+    }
+
     setSubmitting(true);
     setError("");
     try {
+      const payload: Record<string, unknown> = { paymentMethod, shippingAddress: form };
+      // Only the brand and last four leave the browser — never the full number or CVC.
+      if (paymentMethod === "CARD") {
+        payload.card = { brand, last4: cardDigits.slice(-4) };
+      }
+      if (paymentMethod === "JAZZCASH") {
+        payload.jazzCashNumber = onlyDigits(jazzCashNumber);
+      }
+
       const res = await api.post<{ order: { orderNumber: string }; checkoutUrl: string | null }>(
         "/orders/checkout",
-        { paymentMethod, shippingAddress: form }
+        payload
       );
       if (res.checkoutUrl) {
         window.location.href = res.checkoutUrl;
@@ -75,55 +131,55 @@ export default function CheckoutPage() {
               <input
                 required
                 placeholder="Full name"
-                className="border border-line px-3.5 py-3 text-sm focus-ring sm:col-span-2"
+                className={`${inputClass} sm:col-span-2`}
                 value={form.fullName}
                 onChange={(e) => setForm({ ...form, fullName: e.target.value })}
               />
               <input
                 required
                 placeholder="Address line 1"
-                className="border border-line px-3.5 py-3 text-sm focus-ring sm:col-span-2"
+                className={`${inputClass} sm:col-span-2`}
                 value={form.line1}
                 onChange={(e) => setForm({ ...form, line1: e.target.value })}
               />
               <input
                 placeholder="Address line 2 (optional)"
-                className="border border-line px-3.5 py-3 text-sm focus-ring sm:col-span-2"
+                className={`${inputClass} sm:col-span-2`}
                 value={form.line2}
                 onChange={(e) => setForm({ ...form, line2: e.target.value })}
               />
               <input
                 required
                 placeholder="City"
-                className="border border-line px-3.5 py-3 text-sm focus-ring"
+                className={inputClass}
                 value={form.city}
                 onChange={(e) => setForm({ ...form, city: e.target.value })}
               />
               <input
                 required
                 placeholder="State / Province"
-                className="border border-line px-3.5 py-3 text-sm focus-ring"
+                className={inputClass}
                 value={form.state}
                 onChange={(e) => setForm({ ...form, state: e.target.value })}
               />
               <input
                 required
                 placeholder="Postal code"
-                className="border border-line px-3.5 py-3 text-sm focus-ring"
+                className={inputClass}
                 value={form.postalCode}
                 onChange={(e) => setForm({ ...form, postalCode: e.target.value })}
               />
               <input
                 required
                 placeholder="Country"
-                className="border border-line px-3.5 py-3 text-sm focus-ring"
+                className={inputClass}
                 value={form.country}
                 onChange={(e) => setForm({ ...form, country: e.target.value })}
               />
               <input
                 required
                 placeholder="Phone"
-                className="border border-line px-3.5 py-3 text-sm focus-ring sm:col-span-2"
+                className={`${inputClass} sm:col-span-2`}
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
               />
@@ -133,14 +189,126 @@ export default function CheckoutPage() {
           <div>
             <h2 className="text-sm font-medium mb-4">Payment method</h2>
             <div className="space-y-3">
-              <label className={`flex items-center gap-3 border px-4 py-3.5 cursor-pointer ${paymentMethod === "CARD" ? "border-ink" : "border-line"}`}>
-                <input type="radio" name="pm" checked={paymentMethod === "CARD"} onChange={() => setPaymentMethod("CARD")} />
-                <span className="text-sm">Card (Visa, Mastercard, Amex via Stripe)</span>
-              </label>
-              <label className={`flex items-center gap-3 border px-4 py-3.5 cursor-pointer ${paymentMethod === "COD" ? "border-ink" : "border-line"}`}>
-                <input type="radio" name="pm" checked={paymentMethod === "COD"} onChange={() => setPaymentMethod("COD")} />
-                <span className="text-sm">Cash on delivery</span>
-              </label>
+              {METHODS.map(({ value, label, hint, icon: Icon }) => {
+                const active = paymentMethod === value;
+                return (
+                  <div key={value} className={`border transition-colors ${active ? "border-ink" : "border-line"}`}>
+                    <label className="flex items-center gap-3 px-4 py-3.5 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="pm"
+                        className="accent-ink"
+                        checked={active}
+                        onChange={() => {
+                          setPaymentMethod(value);
+                          setError("");
+                        }}
+                      />
+                      <Icon size={18} strokeWidth={1.5} className={active ? "text-ink" : "text-ink/50"} />
+                      <span className="min-w-0">
+                        <span className="block text-sm">{label}</span>
+                        <span className="block text-xs text-ink/50">{hint}</span>
+                      </span>
+                    </label>
+
+                    {active && value === "CARD" && (
+                      <div className="border-t hairline p-4 space-y-4 bg-cream/60">
+                        <div>
+                          <label className="block text-xs font-medium text-ink/60 mb-1.5">Card number</label>
+                          <div className="relative">
+                            <input
+                              required
+                              inputMode="numeric"
+                              autoComplete="cc-number"
+                              placeholder="1234 5678 9012 3456"
+                              className={`${inputClass} pr-16`}
+                              value={card.number}
+                              onChange={(e) => setCard({ ...card, number: formatCardNumber(e.target.value) })}
+                            />
+                            {cardDigits.length >= 2 && brand !== "Card" && (
+                              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[11px] font-medium text-ink/60">
+                                {brand}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-medium text-ink/60 mb-1.5">Name on card</label>
+                          <input
+                            required
+                            autoComplete="cc-name"
+                            placeholder="As printed on the card"
+                            className={inputClass}
+                            value={card.name}
+                            onChange={(e) => setCard({ ...card, name: e.target.value })}
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium text-ink/60 mb-1.5">Expiry</label>
+                            <input
+                              required
+                              inputMode="numeric"
+                              autoComplete="cc-exp"
+                              placeholder="MM/YY"
+                              className={inputClass}
+                              value={card.expiry}
+                              onChange={(e) => setCard({ ...card, expiry: formatExpiry(e.target.value) })}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-ink/60 mb-1.5">
+                              Security code
+                            </label>
+                            <input
+                              required
+                              inputMode="numeric"
+                              autoComplete="cc-csc"
+                              placeholder={brand === "Amex" ? "4 digits" : "3 digits"}
+                              className={inputClass}
+                              value={card.cvc}
+                              onChange={(e) =>
+                                setCard({ ...card, cvc: onlyDigits(e.target.value).slice(0, cvcLength(brand)) })
+                              }
+                            />
+                          </div>
+                        </div>
+
+                        <p className="flex items-start gap-2 text-xs text-ink/50">
+                          <Lock size={13} strokeWidth={1.5} className="mt-0.5 shrink-0" />
+                          Your card is checked in your browser. We only keep the brand and last four
+                          digits — never the full number or security code.
+                        </p>
+                      </div>
+                    )}
+
+                    {active && value === "JAZZCASH" && (
+                      <div className="border-t hairline p-4 space-y-3 bg-cream/60">
+                        <div>
+                          <label className="block text-xs font-medium text-ink/60 mb-1.5">
+                            JazzCash mobile number
+                          </label>
+                          <input
+                            required
+                            inputMode="numeric"
+                            autoComplete="tel-national"
+                            placeholder="0300-1234567"
+                            className={inputClass}
+                            value={jazzCashNumber}
+                            onChange={(e) => setJazzCashNumber(formatMobile(e.target.value))}
+                          />
+                        </div>
+                        <p className="text-xs text-ink/50">
+                          You'll get a payment request on this number to approve with your JazzCash
+                          PIN. Your order ships once the payment clears.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 

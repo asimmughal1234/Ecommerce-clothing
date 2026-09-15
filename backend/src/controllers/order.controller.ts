@@ -10,7 +10,18 @@ import { generateOrderNumber } from "../utils/orderNumber";
 const stripe = env.stripeSecretKey ? new Stripe(env.stripeSecretKey) : null;
 
 const checkoutSchema = z.object({
-  paymentMethod: z.enum(["CARD", "COD"]),
+  paymentMethod: z.enum(["CARD", "COD", "JAZZCASH"]),
+  // The browser validates the card and sends only what is safe to retain.
+  card: z
+    .object({
+      brand: z.string().min(2).max(20),
+      last4: z.string().regex(/^\d{4}$/),
+    })
+    .optional(),
+  jazzCashNumber: z
+    .string()
+    .regex(/^03\d{9}$/, "Enter a valid JazzCash mobile number, e.g. 0300-1234567.")
+    .optional(),
   shippingAddress: z.object({
     fullName: z.string().min(2),
     line1: z.string().min(3),
@@ -31,6 +42,10 @@ const TAX_RATE = 0.0;
 export const checkout = asyncHandler(async (req: Request, res: Response) => {
   const data = checkoutSchema.parse(req.body);
   const userId = req.user!.userId;
+
+  if (data.paymentMethod === "JAZZCASH" && !data.jazzCashNumber) {
+    throw new ApiError(400, "A JazzCash mobile number is required to pay with JazzCash.");
+  }
 
   const cartItems = await prisma.cartItem.findMany({ where: { userId }, include: { product: true } });
   if (cartItems.length === 0) throw new ApiError(400, "Your cart is empty.");
@@ -56,8 +71,11 @@ export const checkout = asyncHandler(async (req: Request, res: Response) => {
         tax,
         total,
         paymentMethod: data.paymentMethod,
-        paymentStatus: data.paymentMethod === "COD" ? "UNPAID" : "UNPAID",
+        paymentStatus: "UNPAID",
         status: "PENDING",
+        cardBrand: data.paymentMethod === "CARD" ? data.card?.brand : null,
+        cardLast4: data.paymentMethod === "CARD" ? data.card?.last4 : null,
+        walletNumber: data.paymentMethod === "JAZZCASH" ? data.jazzCashNumber : null,
         shippingName: data.shippingAddress.fullName,
         shippingLine1: data.shippingAddress.line1,
         shippingLine2: data.shippingAddress.line2,
@@ -99,7 +117,7 @@ export const checkout = asyncHandler(async (req: Request, res: Response) => {
     return created;
   });
 
-  if (data.paymentMethod === "COD") {
+  if (data.paymentMethod === "COD" || data.paymentMethod === "JAZZCASH") {
     return res.status(201).json({ order, checkoutUrl: null });
   }
 

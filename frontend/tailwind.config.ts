@@ -22,7 +22,9 @@ const config: Config = {
         tightest: "-0.04em",
       },
       maxWidth: {
-        content: "1380px",
+        // Proportional rather than a fixed cap, so the layout keeps growing on
+        // wide monitors instead of stranding the content in a narrow column.
+        content: "96%",
       },
       transitionTimingFunction: {
         editorial: "cubic-bezier(0.22, 1, 0.36, 1)",

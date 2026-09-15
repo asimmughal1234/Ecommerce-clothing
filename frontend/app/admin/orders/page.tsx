@@ -74,7 +74,13 @@ export default function AdminOrdersPage() {
                       <p>{o.user?.name}</p>
                       <p className="text-xs text-ink/40">{o.user?.email}</p>
                     </td>
-                    <td className="px-4 py-3.5 text-ink/70">{o.paymentMethod} · {o.paymentStatus}</td>
+                    <td className="px-4 py-3.5 text-ink/70">
+                      <p>{o.paymentMethod} · {o.paymentStatus}</p>
+                      {o.cardLast4 && (
+                        <p className="text-xs text-ink/40">{o.cardBrand} ···· {o.cardLast4}</p>
+                      )}
+                      {o.walletNumber && <p className="text-xs text-ink/40">{o.walletNumber}</p>}
+                    </td>
                     <td className="px-4 py-3.5 font-medium">{formatPrice(o.total)}</td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-2">
